@@ -1,0 +1,233 @@
+#1
+with bbb as
+(
+select t31.v_name as b1, avg(t21.n_cost_period) as b2 from fw_contracts t11
+join fw_services_cost t21 on t11.id_contract_inst  = t21.id_contract_inst
+join fw_departments t31 on t11.id_department       = t31.id_department
+where t11.dt_start <= localtimestamp
+and localtimestamp < t11.dt_stop
+and t21.dt_start <= localtimestamp
+and localtimestamp < t21.dt_stop
+group by t31.v_name
+)
+select aaa.a1, aaa.a2 from bbb
+join fw_departments on bbb.b1                    = fw_departments.v_name
+join fw_contracts   on fw_contracts.id_department       = fw_departments.id_department
+join          
+(
+select t1.v_ext_ident as a1, sum(t2.n_cost_period) as a2 from fw_contracts t1
+join fw_services_cost  t2 on t1.id_contract_inst = t2.id_contract_inst
+where t1.dt_start <= localtimestamp
+and localtimestamp < t1.dt_stop
+and t2.dt_start <= localtimestamp
+and localtimestamp < t2.dt_stop
+group by t1.v_ext_ident
+) aaa
+on aaa.a1                        = fw_contracts.v_ext_ident
+where aaa.a2 > bbb.b2;
+
+#2
+ with dep_av_cost as
+(
+select fw_departments.v_name as dep, avg(fw_services_cost.n_cost_period) as avco from fw_services_cost   
+join fw_contracts        on fw_services_cost.id_contract_inst   = fw_contracts.id_contract_inst
+join fw_departments      on fw_contracts.id_department          = fw_departments.id_department
+
+where  fw_departments.b_deleted=0
+and fw_services_cost.dt_start <= localtimestamp
+and localtimestamp < fw_services_cost.dt_stop
+and fw_contracts.dt_start <= localtimestamp
+and localtimestamp < fw_contracts.dt_stop
+group by fw_departments.v_name
+)
+
+select distinct t1.v_name, t5.v_name, t3.n_cost_period from fw_service t1
+join fw_services        t2 on t1.id_service         = t2.id_service
+join fw_services_cost   t3 on t2.id_service_inst    = t3.id_service_inst
+join fw_contracts       t4 on t3.id_contract_inst   = t4.id_contract_inst
+join fw_departments     t5 on t4.id_department      = t5.id_department
+join dep_av_cost        t6 on t5.v_name             = t6.dep
+
+where t1.b_deleted=0
+and t2.b_deleted=0
+and t5.b_deleted=0
+and t2.dt_start <= localtimestamp
+and localtimestamp < t2.dt_stop
+and t3.dt_start <= localtimestamp
+and localtimestamp < t3.dt_stop
+and t4.dt_start <= localtimestamp
+and localtimestamp < t4.dt_stop
+and t3.n_cost_period > avco;
+
+
+
+#3.1)
+ with ab_cost_chang as
+(
+select fw_contracts.v_ext_ident as ab, id_service_inst as serv, count(distinct nvl(n_discount_period, '0')) as chang from fw_services_cost   
+join fw_contracts        on fw_services_cost.id_contract_inst   = fw_contracts.id_contract_inst
+
+where
+(
+    (fw_services_cost.dt_stop >= to_date('2017-11-1', 'yyyy-mm-dd')
+    and fw_services_cost.dt_stop <= to_date('2017-11-30', 'yyyy-mm-dd')
+    )
+or
+    (fw_services_cost.dt_start >= to_date('2017-11-1', 'yyyy-mm-dd')
+    and fw_services_cost.dt_start <= to_date('2017-11-30', 'yyyy-mm-dd')
+    )
+)
+and fw_contracts.dt_start <= localtimestamp
+and localtimestamp < fw_contracts.dt_stop
+group by fw_contracts.v_ext_ident, id_service_inst
+having count(distinct nvl(n_discount_period, '0'))>1
+)
+
+select t4.v_ext_ident, t3.n_cost_period from fw_services_cost   t3 
+join fw_contracts       t4 on t3.id_contract_inst   = t4.id_contract_inst
+join ab_cost_chang         on ab                    = t4.v_ext_ident and t3.id_service_inst = serv
+
+where 
+t3.dt_start <= localtimestamp
+and localtimestamp < t3.dt_stop
+and t4.dt_start <= localtimestamp
+and localtimestamp < t4.dt_stop;
+
+
+
+#3.2) 
+with ab_cost_chang as
+(
+select fw_contracts.v_ext_ident as ab, id_service_inst as serv, count(distinct nvl(n_discount_period, '0')) as chang from fw_services_cost   
+join fw_contracts        on fw_services_cost.id_contract_inst   = fw_contracts.id_contract_inst
+
+where
+(
+    (fw_services_cost.dt_stop >= to_date('2017-11-1', 'yyyy-mm-dd')
+    and fw_services_cost.dt_stop <= to_date('2017-11-30', 'yyyy-mm-dd')
+    )
+or
+    (fw_services_cost.dt_start >= to_date('2017-11-1', 'yyyy-mm-dd')
+    and fw_services_cost.dt_start <= to_date('2017-11-30', 'yyyy-mm-dd')
+    )
+)
+and fw_contracts.dt_start <= localtimestamp
+and localtimestamp < fw_contracts.dt_stop
+group by fw_contracts.v_ext_ident, id_service_inst
+having count(distinct nvl(n_discount_period, '0'))>1
+)
+
+select t4.v_ext_ident, chang from fw_services_cost   t3 
+join fw_contracts       t4 on t3.id_contract_inst   = t4.id_contract_inst
+join ab_cost_chang         on ab                    = t4.v_ext_ident and t3.id_service_inst = serv
+
+where 
+t3.dt_start <= localtimestamp
+and localtimestamp < t3.dt_stop
+and t4.dt_start <= localtimestamp
+and localtimestamp < t4.dt_stop;
+
+
+
+#4 
+select id_service_inst, count(*) from fw_services_cost
+group by id_service_inst
+order by 2 desc
+--чаще всего мен€ли одну запись (4 раза) соответственно цена не мен€лась в соответствии с условием задачи
+
+#5
+select distinct t5.v_name, t1.v_name, t3.n_cost_period from fw_service t1
+join fw_services        t2 on t1.id_service         = t2.id_service
+join fw_services_cost   t3 on t2.id_service_inst    = t3.id_service_inst
+join fw_contracts       t4 on t3.id_contract_inst   = t4.id_contract_inst
+join fw_departments     t5 on t4.id_department      = t5.id_department
+
+where t1.b_deleted=0
+and t2.b_deleted=0
+and t5.b_deleted=0
+and t2.dt_start <= localtimestamp
+and localtimestamp < t2.dt_stop
+and t3.dt_start <= localtimestamp
+and localtimestamp < t3.dt_stop
+and t4.dt_start <= localtimestamp
+and localtimestamp < t4.dt_stop
+order by t3.n_cost_period desc
+Fetch first 5 rows only;
+
+#6
+with tp_max_cost as
+(select distinct t6.v_name as tp, max(t3.n_cost_period) as cos from fw_service t1
+join fw_services        t2 on t1.id_service         = t2.id_service
+join fw_services_cost   t3 on t2.id_service_inst    = t3.id_service_inst
+join fw_contracts       t4 on t3.id_contract_inst   = t4.id_contract_inst
+join fw_departments     t5 on t4.id_department      = t5.id_department
+join fw_tariff_plan     t6 on t2.id_tariff_plan     = t6.id_tariff_plan
+where t1.b_deleted=0
+and t2.b_deleted=0
+and t5.b_deleted=0
+and t6.b_deleted=0
+and t2.dt_start <= localtimestamp
+and localtimestamp < t2.dt_stop
+and t3.dt_start <= localtimestamp
+and localtimestamp < t3.dt_stop
+and t4.dt_start <= localtimestamp
+and localtimestamp < t4.dt_stop
+and t6.dt_start <= localtimestamp
+and localtimestamp < t6.dt_stop
+group by t6.v_name
+order by 2 desc
+fetch first 5 rows only)
+
+select distinct t51.v_name, t71.tp, t71.cos from fw_services t21
+join fw_services_cost   t31 on t21.id_service_inst    = t31.id_service_inst
+join fw_contracts       t41 on t31.id_contract_inst   = t41.id_contract_inst
+join fw_departments     t51 on t41.id_department      = t51.id_department
+join fw_tariff_plan     t61 on t21.id_tariff_plan     = t61.id_tariff_plan
+join tp_max_cost        t71 on t71.tp                 = t61.v_name and t71.cos = t31.n_cost_period
+where t21.b_deleted=0
+and t51.b_deleted=0
+and t61.b_deleted=0
+and t21.dt_start <= localtimestamp
+and localtimestamp < t21.dt_stop
+and t31.dt_start <= localtimestamp
+and localtimestamp < t31.dt_stop
+and t41.dt_start <= localtimestamp
+and localtimestamp < t41.dt_stop
+and t61.dt_start <= localtimestamp
+and localtimestamp < t61.dt_stop
+order by 3 desc;
+
+
+
+#7 with dep_ser_pop as
+(
+select fw_departments.v_name as dep, id_service_inst as ser, count(*) as pop from fw_departments
+join fw_contracts on fw_departments.id_department = fw_contracts.id_department
+join fw_services_cost on fw_contracts.id_contract_inst = fw_services_cost.id_contract_inst
+group by fw_departments.v_name, id_service_inst
+order by 1, 2, 3 desc
+)
+
+
+select a1 as "ќтдел", a2 as "—амые попул€рные", b2 as "—амые не попул€рные" from
+(
+select t7.dep as a1, listagg(po.ser, ', ') WITHIN GROUP (order by po.ser) as a2
+from (select dep, max(pop) as ma, min(pop) as mi from dep_ser_pop 
+group by dep) t7
+join dep_ser_pop  po on t7.dep=po.dep and t7.ma=po.pop
+group by t7.dep
+)  dep_max
+join 
+(
+select t8.dep as b1, listagg(np.ser, ', ') WITHIN GROUP (order by np.ser)  as b2
+from (select dep, max(pop) as ma, min(pop) as mi from dep_ser_pop 
+group by dep) t8
+join dep_ser_pop  np on t8.dep=np.dep and t8.mi=np.pop
+group by t8.dep
+)  dep_min
+on dep_max.a1=dep_min.b1;
+
+
+
+
+
