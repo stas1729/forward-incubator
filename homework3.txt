@@ -1,5 +1,17 @@
-#1
-with bbb as
+﻿#1
+with 
+ab_ap as
+(
+select t1.v_ext_ident as a1, sum(t2.n_cost_period) as a2 from fw_contracts t1
+join fw_services_cost  t2 on t1.id_contract_inst = t2.id_contract_inst
+where t1.dt_start <= localtimestamp
+and localtimestamp < t1.dt_stop
+and t2.dt_start <= localtimestamp
+and localtimestamp < t2.dt_stop
+group by t1.v_ext_ident
+),
+
+dep_avg_cost as
 (
 select t31.v_name as b1, avg(t21.n_cost_period) as b2 from fw_contracts t11
 join fw_services_cost t21 on t11.id_contract_inst  = t21.id_contract_inst
@@ -10,20 +22,10 @@ and t21.dt_start <= localtimestamp
 and localtimestamp < t21.dt_stop
 group by t31.v_name
 )
-select aaa.a1, aaa.a2 from bbb
+select aaa.a1, aaa.a2 from dep_avg_cost bbb
 join fw_departments on bbb.b1                    = fw_departments.v_name
 join fw_contracts   on fw_contracts.id_department       = fw_departments.id_department
-join          
-(
-select t1.v_ext_ident as a1, sum(t2.n_cost_period) as a2 from fw_contracts t1
-join fw_services_cost  t2 on t1.id_contract_inst = t2.id_contract_inst
-where t1.dt_start <= localtimestamp
-and localtimestamp < t1.dt_stop
-and t2.dt_start <= localtimestamp
-and localtimestamp < t2.dt_stop
-group by t1.v_ext_ident
-) aaa
-on aaa.a1                        = fw_contracts.v_ext_ident
+join ab_ap aaa on aaa.a1                        = fw_contracts.v_ext_ident
 where aaa.a2 > bbb.b2;
 
 #2
@@ -226,6 +228,34 @@ join dep_ser_pop  np on t8.dep=np.dep and t8.mi=np.pop
 group by t8.dep
 )  dep_min
 on dep_max.a1=dep_min.b1;
+
+#11
+with dep_tar_cos as
+(select t5.v_name as dep, t6.v_name as tar, sum(t3.n_cost_period) as cos, dense_rank() over (partition by t5.v_name order by sum(t3.n_cost_period) desc) as rang from fw_tariff_plan t6
+join fw_services        t2 on t6.id_tariff_plan     = t2.id_tariff_plan
+join fw_services_cost   t3 on t2.id_service_inst    = t3.id_service_inst
+join fw_contracts       t4 on t3.id_contract_inst   = t4.id_contract_inst
+join fw_departments     t5 on t4.id_department      = t5.id_department
+join fw_service         t1 on t1.id_service         = t2.id_service
+
+
+where t6.b_deleted=0
+and t1.b_deleted=0
+and t2.b_deleted=0
+and t5.b_deleted=0
+and t2.dt_start <= localtimestamp
+and localtimestamp < t2.dt_stop
+and t3.dt_start <= localtimestamp
+and localtimestamp < t3.dt_stop
+and t4.dt_start <= localtimestamp
+and localtimestamp < t4.dt_stop
+and t1.b_add_service=1
+group by t5.v_name, t6.v_name
+order by t5.v_name, sum(t3.n_cost_period) desc)
+
+select dep, tar, cos from dep_tar_cos
+where rang = 1
+order by dep
 
 
 
