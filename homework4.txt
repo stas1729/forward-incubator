@@ -1,0 +1,60 @@
+#3
+
+create or replace procedure proc1(dat1 in trans_external.dt_event%type, dat2 in trans_external.dt_event%type)
+is
+CURSOR curs IS
+
+(select distinct fw_contracts.v_ext_ident, fw_departments.v_name, a2, trans_external.f_sum from fw_contracts
+join trans_external on trans_external.id_contract = fw_contracts.id_contract_inst
+join fw_departments on fw_departments.id_department = fw_contracts.id_department
+join
+(
+select fw_contracts.v_ext_ident as a1, sum(trans_external.f_sum) as a2, max(trans_external.dt_event) as a3 from trans_external
+join fw_contracts on trans_external.id_contract = fw_contracts.id_contract_inst
+where to_char(trans_external.dt_event, 'yyyy-mm-dd') <= to_char(dat1, 'yyyy-mm-dd')
+and to_char(trans_external.dt_event, 'yyyy-mm-dd') >= to_char(dat2, 'yyyy-mm-dd')
+and trans_external.v_status = 'A'
+and fw_contracts.dt_start <= localtimestamp
+and localtimestamp < fw_contracts.dt_stop
+group by fw_contracts.v_ext_ident
+) on a1 = fw_contracts.v_ext_ident
+where a3 = trans_external.dt_event);
+
+st1 curs%rowtype;
+
+begin
+open curs;
+LOOP
+
+EXIT WHEN curs%NOTFOUND;
+
+DBMS_OUTPUT.enable;
+FETCH curs INTO st1;
+DBMS_OUTPUT.put_line(to_char(st1)); --и тут как-то по строчке выводим содержимое курсора
+
+END LOOP;
+
+CLOSE curs;
+
+end;
+
+
+#4
+create or replace procedure proc2(diap_start in fw_identifiers.v_value%type,
+                                  diap_stop  in fw_identifiers.v_value%type,
+                                  prim_ident in fw_identifiers.id_service_identifier%type,
+                                  new_ident  in fw_identifiers.id_service_identifier%type)
+is
+begin
+  
+   update fw_identifiers
+   set fw_identifiers.id_service_identifier =  (select fw_service_identifier.id_service_identifier from fw_service_identifier
+                                                where fw_service_identifier.v_name = new_ident)
+   
+   where diap_start <= fw_identifiers.v_value 
+   and fw_identifiers.v_value <= diap_stop
+   and fw_identifiers.id_service_identifier = (select fw_service_identifier.id_service_identifier from fw_service_identifier
+                                                where fw_service_identifier.v_name = prim_ident)
+   ;
+   
+   end;
