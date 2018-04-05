@@ -1,0 +1,80 @@
+create or replace package commutator is
+
+  procedure saveBANK(s_id_comm       in id_commutator%type,
+                     s_ip_add        in id_address%type,
+                     s_id_comm_type  in id_commutator_type%type,
+                     s_v_descr       in v_desription%type,
+                     s_mac_add       in v_mac_address%type,
+                     s_v_rd          in v_community_read%type,
+                     s_v_wr          in v_community_read%type,
+                     s_rem_id        in remote_id%type,
+                     s_b_need_co_hex in b_need_convert_hex%type,
+                     s_rem_id_hex    in remote_id_hex%type,
+                     s_action        in number) --1) add commutator, 
+            is
+            l_cnt number;
+            begin
+              case s_action
+                  when 1 then --start add
+                    
+                    select count(*) into l_cnt from incb_commutator --id_address uniqe
+                    where b_deleted = 0 and id_address = s_ip_add;
+                    
+                    if l_cnt !=0
+                      then 
+                        raise_application_error(-20100, 'id_address is not uniqe!');
+                        goto fin;
+                     end if;
+                     
+                     l_cnt :=0;
+                     
+                     select count(*) into l_cnt from incb_commutator --mac_address uniqe
+                    where b_deleted = 0 and s_mac_add = v_mac_address;
+                    
+                    if l_cnt !=0
+                      then 
+                        raise_application_error(-20101, 'id_address is not uniqe!');
+                        goto fin;
+                     end if;
+                     
+                     l_cnt :=0;
+                    
+                    if s_rem_id like '%.hex' --remote_id_hex need
+                      and s_rem_id_hex is null
+                      then
+                        raise_application_error(-20102, 'id_address is not unique!');
+                        goto fin;
+                     end if;
+                      
+                    if (s_v_rd=NULL) or (s_v_wr=NULL) or (s_ip_add=NULL) or (s_mac_add=NULL) or (s_rem_id=NULL) --necessary fields
+                      then
+                        raise_application_error(-20103, 'necessary field is empty!');
+                        goto fin;
+                    end if;
+                   
+                    select unique length(to_char(s_id_address)) into l_cnt from incb_commutator;
+                    
+                    if length(s_ip_add) != l_cnt --id_address valid
+                       then
+                            raise_application_error(-20104, 'id_address is not valid!');
+                            goto fin;
+                         end if;
+                     
+                    l_cnt :=0;    
+                    
+                    insert into incb_commutator
+                    (ID_COMMUTATOR, IP_ADDRESS, ID_COMMUTATOR_TYPE, V_DESCRIPTION, B_DELETED, V_MAC_ADDRESS, V_COMMUNITY_READ, V_COMMUNITY_WRITE, REMOTE_ID, B_NEED_CONVERT_HEX, REMOTE_ID_HEX)
+                    values
+                    (s_id_comm,     s_ip_add,   s_id_comm_type,     s_v_descr,     0,         s_mac_add,     s_v_rd,           s_v_wr,            s_rem_id,  s_b_need_co_hex,    s_rem_id_hex);
+                    
+                    <<fin>>;
+                    end case; --end add
+                   
+                  end saveBANK;
+                  
+                  
+                  end;
+                  --when 2 then --start
+                  
+                  
+                    
