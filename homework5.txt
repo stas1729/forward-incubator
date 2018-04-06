@@ -1,18 +1,20 @@
 create or replace package commutator is
 
-  procedure saveBANK(s_id_comm       in id_commutator%type,
-                     s_ip_add        in id_address%type,
-                     s_id_comm_type  in id_commutator_type%type,
-                     s_v_descr       in v_desription%type,
-                     s_mac_add       in v_mac_address%type,
-                     s_v_rd          in v_community_read%type,
-                     s_v_wr          in v_community_read%type,
-                     s_rem_id        in remote_id%type,
-                     s_b_need_co_hex in b_need_convert_hex%type,
-                     s_rem_id_hex    in remote_id_hex%type,
-                     s_action        in number) --1) add commutator, 
+  procedure saveCOMMUTATOR(s_id_comm       in id_commutator%type,
+                           s_ip_add        in id_address%type,
+                           s_id_comm_type  in id_commutator_type%type,
+                           s_v_descr       in v_desription%type,
+                           s_b_del         in B_DELETED%type,
+                           s_mac_add       in v_mac_address%type,
+                           s_v_rd          in v_community_read%type,
+                           s_v_wr          in v_community_write%type,
+                           s_rem_id        in remote_id%type,
+                           s_b_need_co_hex in b_need_convert_hex%type,
+                           s_rem_id_hex    in remote_id_hex%type,
+                           s_action        in number) --1) add commutator, 2) edit, 3) delete
             is
-            l_cnt number;
+            l_cnt number;
+
             begin
               case s_action
                   when 1 then --start add
@@ -65,16 +67,231 @@ create or replace package commutator is
                     insert into incb_commutator
                     (ID_COMMUTATOR, IP_ADDRESS, ID_COMMUTATOR_TYPE, V_DESCRIPTION, B_DELETED, V_MAC_ADDRESS, V_COMMUNITY_READ, V_COMMUNITY_WRITE, REMOTE_ID, B_NEED_CONVERT_HEX, REMOTE_ID_HEX)
                     values
-                    (s_id_comm,     s_ip_add,   s_id_comm_type,     s_v_descr,     0,         s_mac_add,     s_v_rd,           s_v_wr,            s_rem_id,  s_b_need_co_hex,    s_rem_id_hex);
+                    (s_id_comm,     s_ip_add,   s_id_comm_type,     s_v_descr,     s_b_del,   s_mac_add,     s_v_rd,           s_v_wr,            s_rem_id,  s_b_need_co_hex,    s_rem_id_hex);
                     
-                    <<fin>>;
-                    end case; --end add
-                   
-                  end saveBANK;
+                    <<fin>>; --end add
+                    
+                  when 2 when --start edit
+                    
+                    select count(*) into l_cnt from incb_commutator --ID_COMMUTATOR exist checking
+                    where b_deleted = 0 and ID_COMMUTATOR = s_id_comm;
+                    
+                    if l_cnt =0
+                      then 
+                        raise_application_error(-20105, 'ID_COMMUTATOR does not exist!');
+                        goto fin;
+                     end if;
+                     
+                     if   s_ip_add = null --fullfilling empty fields
+                       then
+                        s_ip_add = (select IP_ADDRESS from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_id_comm_type = null
+                       then
+                        s_id_comm_type = (select ID_COMMUTATOR_TYPE from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_v_descr = null
+                       then
+                        s_v_descr = (select V_DESCRIPTION from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                       
+                     if   s_b_del = null
+                       then
+                        s_b_del = (select B_DELETED from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if; 
+                     
+                     if   s_mac_add = null
+                       then
+                        s_mac_add = (select V_MAC_ADDRESS from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if; 
+                     
+                     if   s_v_rd = null
+                       then
+                        s_v_rd = (select V_COMMUNITY_READ from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if; 
                   
+                     if   s_v_wr = null
+                       then
+                        s_v_wr = (select V_COMMUNITY_WRITE from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_rem_id = null
+                       then
+                        s_rem_id = (select REMOTE_ID from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_b_need_co_hex = null
+                       then
+                        s_b_need_co_hex = (select B_NEED_CONVERT_HEX from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_rem_id_hex = null
+                       then
+                        s_rem_id_hex = (select REMOTE_ID_HEX from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     update incb_commutator
+                     set
+                     ID_COMMUTATOR = s_id_comm, 
+                     IP_ADDRESS = s_ip_add, 
+                     ID_COMMUTATOR_TYPE = s_id_comm_type, 
+                     V_DESCRIPTION = s_v_descr, 
+                     B_DELETED = s_b_del,
+                     V_MAC_ADDRESS = s_mac_add, 
+                     V_COMMUNITY_READ = s_v_rd, 
+                     V_COMMUNITY_WRITE = s_v_wr, 
+                     REMOTE_ID = s_rem_id, 
+                     B_NEED_CONVERT_HEX = s_b_need_co_hex, 
+                     REMOTE_ID_HEX = s_rem_id_hex
+                     where id_address = s_ip_add
+                     and B_DELETED = 0;
                   
-                  end;
-                  --when 2 then --start
+                     <<fin>>; --end edit
+                    
+                 when 3 when --start delete
+                    select count(*) into l_cnt from incb_commutator --ID_COMMUTATOR exist checking
+                    where b_deleted = 0 and ID_COMMUTATOR = s_id_comm;
+                    
+                    if l_cnt =0
+                      then 
+                        raise_application_error(-20105, 'ID_COMMUTATOR does not exist!');
+                        goto fin;
+                     end if;
+                     
+                     if   s_ip_add = null --fullfilling empty fields
+                       then
+                        s_ip_add = (select IP_ADDRESS from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_id_comm_type = null
+                       then
+                        s_id_comm_type = (select ID_COMMUTATOR_TYPE from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_v_descr = null
+                       then
+                        s_v_descr = (select V_DESCRIPTION from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                       
+                     if   s_b_del = null
+                       then
+                        s_b_del = (select B_DELETED from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if; 
+                     
+                     if   s_mac_add = null
+                       then
+                        s_mac_add = (select V_MAC_ADDRESS from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if; 
+                     
+                     if   s_v_rd = null
+                       then
+                        s_v_rd = (select V_COMMUNITY_READ from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if; 
+                  
+                     if   s_v_wr = null
+                       then
+                        s_v_wr = (select V_COMMUNITY_WRITE from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_rem_id = null
+                       then
+                        s_rem_id = (select REMOTE_ID from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_b_need_co_hex = null
+                       then
+                        s_b_need_co_hex = (select B_NEED_CONVERT_HEX from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     if   s_rem_id_hex = null
+                       then
+                        s_rem_id_hex = (select REMOTE_ID_HEX from incb_commutator where ID_COMMUTATOR = s_id_comm and B_DELETED = 0);
+                     end if;
+                     
+                     update incb_commutator
+                     set
+                     ID_COMMUTATOR = s_id_comm, 
+                     IP_ADDRESS = s_ip_add, 
+                     ID_COMMUTATOR_TYPE = s_id_comm_type, 
+                     V_DESCRIPTION = s_v_descr, 
+                     B_DELETED = 1, --formal deleting
+                     V_MAC_ADDRESS = s_mac_add, 
+                     V_COMMUNITY_READ = s_v_rd, 
+                     V_COMMUNITY_WRITE = s_v_wr, 
+                     REMOTE_ID = s_rem_id, 
+                     B_NEED_CONVERT_HEX = s_b_need_co_hex, 
+                     REMOTE_ID_HEX = s_rem_id_hex
+                     where id_address = s_ip_add
+                     and B_DELETED = 0;
+                    
+                end case;
+           end saveCOMMUTATOR;
+                  
+ procedure getCOMMUTATOR(  s_ip_add        in id_address%type,
+                           s_mac_add       in v_mac_address%type,
+                           s_rem_id        in remote_id%type)
+           is
+           curs cursor is
+           (select * from  (select * from incb_commutator
+                            where s_ip_add  = id_address and B_DELETED = 0) t1
+             join          (select * from incb_commutator
+                            where s_mac_add = v_mac_address and B_DELETED = 0) t2 on t1.id_commutator = t1.id_commutator
+             join          (select * from incb_commutator
+                            where s_rem_id  = remote_id and B_DELETED = 0) t3 on t1.id_commutator = t3.id_commutator);
+                            
+            begin
+              null; --предварительно делаем проверку на V_COMMUNITY_READ и если чтение разрешено, как-то выводим курсор на экран 
+              
+          end getCOMMUTATOR;
+                            
+                 
+  procedure check_access_comm(s_ip_add     in id_address%type,
+                              B_MODE_WRITE in number)
+            is
+            l_cnt number;
+            begin
+              select count(*) into l_cnt from incb_commutator --id_address exist checking
+                    where b_deleted = 0 and s_ip_add = id_address;
+                    
+                    if l_cnt = 0
+                      then 
+                        raise_application_error(-20105, 'id_address does not exist!');
+                        goto fin;
+                     end if;
+                     
+               case B_MODE_WRITE
+                 when 0 then
+                   if (select v_community_read from incb_commutator where s_ip_add = id_address and B_deleted = 0) = 1 then
+                     dbms_output.put_line('1');
+                     else 
+                     dbms_output.put_line('0');
+                    end if;
+                  when 1 then
+                    if (select v_community_write from incb_commutator where s_ip_add = id_address and B_deleted = 0) = 1 then
+                       dbms_output.put_line('1');
+                       else 
+                       dbms_output.put_line('0');
+                    end if;  
+                 end case;
+                 <<fin>>;
+ end check_access_comm;
+ 
+ procedure get_remote_id(s_id_comm in id_commutator%type)
+   is 
+    l_cnt number;
+            begin
+              select count(*) into l_cnt from incb_commutator --id_commutator exist checking
+                    where b_deleted = 0 and s_id_comm = id_commutator;
+                    
+                    if l_cnt = 0
+                      then 
+                        raise_application_error(-20105, 'id_commutator does not exist!');
+                        goto fin;
+                     end if;
+               
+end;
                   
                   
                     
