@@ -1,10 +1,17 @@
-#3
-
-create or replace procedure proc1(dat1 in trans_external.dt_event%type, dat2 in trans_external.dt_event%type)
+declare cursor dwr
 is
-CURSOR curs IS
+begin
+  null;
+  end;
 
-(select distinct fw_contracts.v_ext_ident, fw_departments.v_name, a2, trans_external.f_sum from fw_contracts
+
+create or replace procedure proc1(dat1 in trans_external.dt_event%type, dat2 in trans_external.dt_event%type, dwr out sys_refcursor)
+is
+
+begin
+open dwr;
+
+select distinct fw_contracts.v_ext_ident, fw_departments.v_name, a2, trans_external.f_sum into dwr from fw_contracts
 join trans_external on trans_external.id_contract = fw_contracts.id_contract_inst
 join fw_departments on fw_departments.id_department = fw_contracts.id_department
 join
@@ -18,28 +25,13 @@ and fw_contracts.dt_start <= localtimestamp
 and localtimestamp < fw_contracts.dt_stop
 group by fw_contracts.v_ext_ident
 ) on a1 = fw_contracts.v_ext_ident
-where a3 = trans_external.dt_event);
+where a3 = trans_external.dt_event;
 
-st1 curs%rowtype;
+CLOSE dwr;
 
-begin
-open curs;
-LOOP
-
-EXIT WHEN curs%NOTFOUND;
-
-DBMS_OUTPUT.enable;
-FETCH curs INTO st1;
-DBMS_OUTPUT.put_line(to_char(st1)); --и тут как-то по строчке выводим содержимое курсора
-
-END LOOP;
-
-CLOSE curs;
-
-end;
+end proc1;
 
 
-#4
 create or replace procedure proc2(diap_start in fw_identifiers.v_value%type,
                                   diap_stop  in fw_identifiers.v_value%type,
                                   prim_ident in fw_identifiers.id_service_identifier%type,
@@ -57,4 +49,4 @@ begin
                                                 where fw_service_identifier.v_name = prim_ident)
    ;
    
-   end;
+end;
